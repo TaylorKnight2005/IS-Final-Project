@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desert Jump: Turbo Edition</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a1a;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 700px;
+            height: 300px;
+            background: linear-gradient(to bottom, #1e3c72 0%, #2a5298 30%, #ff9a9e 60%, #fecfef 80%, #f3daaf 80%, #d4a373 100%);
+            border: 6px solid #444;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+        }
+
+        /* Home Button Style */
+        #home-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 110;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            font-size: 14px;
+            font-weight: bold;
+            border: 2px solid #333;
+            transition: 0.2s;
+        }
+        #home-btn:hover { background: #fff; transform: scale(1.05); }
+
+        /* Giraffe - Facing Right */
+        #giraffe {
+            width: 60px;
+            height: 80px;
+            position: absolute;
+            bottom: 60px;
+            left: 50px;
+            font-size: 55px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transform: scaleX(-1); 
+            transition: height 0.1s;
+        }
+
+        #giraffe.ducking {
+            height: 40px;
+            font-size: 35px;
+        }
+
+        /* Obstacles */
+        .obstacle {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+        #rock { bottom: 60px; font-size: 35px; }
+        #tree { bottom: 125px; font-size: 45px; display: none; }
+
+        #score-board {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 28px;
+            color: white;
+            text-shadow: 2px 2px 0px #000;
+            z-index: 105;
+        }
+
+        /* Jump Animation */
+        .animate-jump {
+            animation: jump 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes jump {
+            0%, 100% { bottom: 60px; }
+            50% { bottom: 210px; }
+        }
+
+        /* Loser Screen */
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #game-over-screen h1 {
+            color: #ff4757;
+            font-size: 80px;
+            margin: 0;
+            text-shadow: 5px 5px 0px #fff;
+        }
+        #retry-btn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 20px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        #retry-btn:hover { background: #ff4757; color: white; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <a href="index.html" id="home-btn">🏠 HOME</a>
+        
+        <div id="score-board">0</div>
+        <div id="giraffe">🦒</div>
+        <div id="rock" class="obstacle">🪨</div>
+        <div id="tree" class="obstacle">🌴</div>
+
+        <div id="game-over-screen">
+            <h1>LOSER</h1>
+            <button id="retry-btn" onclick="resetGame()">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        const giraffe = document.getElementById("giraffe");
+        const rock = document.getElementById("rock");
+        const tree = document.getElementById("tree");
+        const scoreBoard = document.getElementById("score-board");
+        const gameOverScreen = document.getElementById("game-over-screen");
+
+        let score = 0;
+        let isGameOver = false;
+        let gameSpeed = 6;
+        let rockPos = 800;
+        let treePos = 1200;
+
+        // --- Controls with Speed Boost ---
+        document.addEventListener("keydown", (e) => {
+            if (isGameOver) return;
+            if (e.code === "Space" || e.code === "ArrowUp") {
+                if (!giraffe.classList.contains("animate-jump")) {
+                    jump();
+                    gameSpeed += 0.05; // Speed boost on jump!
+                }
+            }
+            if (e.code === "ArrowDown") {
+                duck(true);
+                gameSpeed += 0.01; // Tiny constant speed boost while ducking
+            }
+        });
+
+        document.addEventListener("keyup", (e) => {
+            if (e.code === "ArrowDown") duck(false);
+        });
+
+        function jump() {
+            if (!giraffe.classList.contains("ducking")) {
+                giraffe.classList.add("animate-jump");
+                setTimeout(() => giraffe.classList.remove("animate-jump"), 600);
+            }
+        }
+
+        function duck(isDucking) {
+            if (isDucking) giraffe.classList.add("ducking");
+            else giraffe.classList.remove("ducking");
+        }
+
+        // --- Logic ---
+        function checkCollision(elm) {
+            const g = giraffe.getBoundingClientRect();
+            const e = elm.getBoundingClientRect();
+            return (g.right > e.left + 15 && g.left < e.right - 15 && 
+                    g.bottom > e.top + 15 && g.top < e.bottom - 15);
+        }
+
+        function resetGame() {
+            score = 0;
+            gameSpeed = 6;
+            rockPos = 800;
+            treePos = 1200;
+            isGameOver = false;
+            scoreBoard.innerText = "0";
+            tree.style.display = "none";
+            gameOverScreen.style.display = "none";
+            update();
+        }
+
+        function update() {
+            if (isGameOver) return;
+
+            // Move Rock
+            rockPos -= gameSpeed;
+            if (rockPos < -60) {
+                rockPos = 700 + Math.random() * 300;
+                score++;
+                gameSpeed += 0.15; // Speed up on successful pass
+            }
+            rock.style.left = rockPos + "px";
+
+            // Move Tree (Triggered at 5 points)
+            if (score >= 5) {
+                tree.style.display = "flex";
+                treePos -= gameSpeed;
+                if (treePos < -60) {
+                    treePos = 900 + Math.random() * 500;
+                    score++;
+                    gameSpeed += 0.15; // Speed up on successful pass
+                }
+            }
+            tree.style.left = treePos + "px";
+
+            scoreBoard.innerText = score;
+
+            // Collisions
+            if (checkCollision(rock) || (score >= 5 && checkCollision(tree))) {
+                isGameOver = true;
+                gameOverScreen.style.display = "flex";
+            } else {
+                requestAnimationFrame(update);
+            }
+        }
+
+        update();
+    </script>
+</body>
+</html>
